@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Resultados VNS – Grower</title>
+<meta name="theme-color" content="#1F3D2B">
+<meta name="description" content="Plataforma de resultados VNS – Grower Consultoria Agronômica">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="login" id="login">
+  <div class="login-card">
+    <div class="marca-sinal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#1F3D2B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V10"/><path d="M12 13c-4 0-6-2.5-6-6 3.5 0 6 2 6 6z"/><path d="M12 11c0-3.5 2.5-6 6-6 0 3.5-2 6-6 6z"/></svg></div>
+    <h2>Resultados VNS</h2>
+    <p class="login-sub">Grower Consultoria Agronômica</p>
+    <form id="login-form" hidden>
+      <label>E-mail<input type="email" id="login-email" autocomplete="username" required></label>
+      <label>Senha<input type="password" id="login-senha" autocomplete="current-password" required></label>
+      <button class="btn btn-prim" type="submit" id="login-entrar">Entrar</button>
+      <button class="link" type="button" id="login-esqueci">Esqueci minha senha</button>
+    </form>
+    <form id="senha-form" hidden>
+      <label>Nova senha<input type="password" id="senha-nova" autocomplete="new-password" minlength="8" required></label>
+      <label>Repita a nova senha<input type="password" id="senha-repete" autocomplete="new-password" minlength="8" required></label>
+      <button class="btn btn-prim" type="submit" id="senha-salvar">Salvar senha e entrar</button>
+    </form>
+    <p class="login-msg" id="login-msg" role="status">Carregando…</p>
+  </div>
+</div>
+<dialog class="dlg" id="dlg-salvar">
+  <form id="dlg-form">
+    <h3>Salvar no banco</h3>
+    <p>A planilha <b id="dlg-arquivo"></b> ficará disponível para todos os usuários com acesso.</p>
+    <label>Safra<input type="text" id="dlg-safra" placeholder="ex.: 25/26" maxlength="20"></label>
+    <div class="dlg-pe">
+      <button class="btn" type="button" id="dlg-cancelar">Cancelar</button>
+      <button class="btn btn-prim" type="submit" id="dlg-confirmar">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<header class="topo">
+  <div class="marca">
+    <div class="marca-sinal" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1F3D2B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V10"/><path d="M12 13c-4 0-6-2.5-6-6 3.5 0 6 2 6 6z"/><path d="M12 11c0-3.5 2.5-6 6-6 0 3.5-2 6-6 6z"/></svg>
+    </div>
+    <div>
+      <h1>Resultados VNS</h1>
+      <small>Grower Consultoria Agronômica</small>
+    </div>
+  </div>
+  <div class="usuario" id="usuario" hidden>
+    <div><b id="usuario-nome"></b><small id="usuario-papel"></small></div>
+    <button class="btn-sair" id="btn-sair" type="button">Sair</button>
+  </div>
+</header>
+
+<div class="corpo">
+  <nav class="guias" role="tablist" aria-label="Guias" aria-orientation="vertical">
+    <button class="guia" role="tab" id="guia-dados" aria-selected="true" aria-controls="painel-dados" data-alvo="dados">Dados</button>
+    <button class="guia" role="tab" id="guia-nematoides" aria-selected="false" aria-controls="painel-nematoides" data-alvo="nematoides" tabindex="-1">Análise de nematoides</button>
+    <button class="guia" role="tab" id="guia-biologica" aria-selected="false" aria-controls="painel-biologica" data-alvo="biologica" tabindex="-1">Análise Biológica</button>
+    <button class="guia" role="tab" id="guia-foliar" aria-selected="false" aria-controls="painel-foliar" data-alvo="foliar" tabindex="-1">Análise Foliar</button>
+    <button class="guia" role="tab" id="guia-graos" aria-selected="false" aria-controls="painel-graos" data-alvo="graos" tabindex="-1">Análise de Grãos</button>
+  </nav>
+  <div class="conteudo">
+<main class="painel" id="painel-dados" role="tabpanel" aria-labelledby="guia-dados">
+  <div class="barra">
+    <label class="btn btn-prim" for="entrada" id="btn-importar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+      Importar planilha
+    </label>
+    <input class="oculto" type="file" id="entrada" accept=".xlsx,.xlsm,.xls,.csv,.ods">
+    <div class="arquivo"><b id="nome-arquivo">Nenhuma planilha</b><span id="info-arquivo">Escolha uma base salva ou importe um arquivo Excel</span></div>
+    <label class="campo-base" id="campo-base" hidden>Base salva<select id="sel-base"></select></label>
+    <button class="btn" id="btn-salvar" type="button" hidden title="Grava a planilha importada no banco, para toda a equipe">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3"/><path d="M8 21v-7h8v7"/></svg>
+      Salvar no banco
+    </button>
+    <button class="btn" id="btn-excluir" type="button" hidden title="Apaga a base selecionada do banco">Excluir base</button>
+    <select class="aba" id="sel-aba" aria-label="Aba da planilha" hidden></select>
+    <div class="espaco"></div>
+    <span class="contagem" id="contagem"></span>
+    <button class="btn exp" id="exportar-dados" title="Salva as linhas visíveis, com os filtros e a ordenação da tela">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Exportar planilha
+    </button>
+    <button class="btn" id="limpar" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/><path d="m16 16 5 5m0-5-5 5"/></svg>
+      Limpar filtros
+    </button>
+  </div>
+  <div class="grade" id="grade">
+    <table id="tabela"></table>
+    <div class="vazio-estado" id="vazio" hidden>
+      <div><h2>Nenhuma planilha carregada</h2><p>Importe um arquivo .xlsx ou arraste-o para cá.</p>
+      <label class="btn btn-prim" for="entrada">Importar planilha</label></div>
+    </div>
+  </div>
+</main>
+
+<section class="painel" id="painel-nematoides" role="tabpanel" aria-labelledby="guia-nematoides" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="f-estado"></select></label>
+    <label class="campo">Cliente<select id="f-cliente"></select></label>
+    <label class="campo">Talhão<select id="f-talhao"></select></label>
+    <label class="campo">Padrão<select id="f-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="legenda"><span><i class="cor ah"></i>Área homogênea (AH)</span><span><i class="cor r"></i>Reboleira (R)</span></div>
+    <button type="button" class="btn exp" id="exp-todos" title="Uma aba por nematoide, com os valores dos gráficos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Exportar Excel
+    </button>
+  </div>
+  <p class="nota" id="nem-nota"></p>
+  <div class="cartoes" id="cartoes"></div>
+</section>
+
+<section class="painel" id="painel-biologica" role="tabpanel" aria-labelledby="guia-biologica" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="b-estado"></select></label>
+    <label class="campo">Cliente<select id="b-cliente"></select></label>
+    <label class="campo">Talhão<select id="b-talhao"></select></label>
+    <label class="campo">Padrão<select id="b-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="modo" role="radiogroup" aria-label="Amostra">
+      <button type="button" role="radio" data-modo="ah" aria-checked="true">Área homogênea</button>
+      <button type="button" role="radio" data-modo="r" aria-checked="false">Reboleira</button>
+      <button type="button" role="radio" data-modo="ambas" aria-checked="false">Ambas</button>
+    </div>
+    <button type="button" class="btn exp exp-topo" id="bx-todos" title="Médias, correlações de todos os nematoides e filtros">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Exportar Excel
+    </button>
+  </div>
+  <p class="nota" id="bio-nota"></p>
+  <div class="leg-classes" id="bio-leg" hidden>
+    <span>Referência Grower:</span>
+    <span class="sw"><i style="background:#FF0000"></i>Muito baixo</span>
+    <span class="sw"><i style="background:#FFC000"></i>Baixo</span>
+    <span class="sw"><i style="background:#FFFF00"></i>Médio</span>
+    <span class="sw"><i style="background:#92D050"></i>Adequado</span>
+    <span class="sw"><i style="background:#00B050"></i>Alto</span>
+    <span class="sw"><i style="background:#0070C0"></i>Muito alto</span>
+    <span>m%: quanto menor, melhor; cores invertidas, do azul (&lt; 1) ao vermelho (&gt; 40).</span>
+  </div>
+  <div class="leg-classes" id="bio-leg-ind" hidden>
+    <span>Referência Embrapa – Índices (IQS a Suprimento):</span>
+    <span class="sw"><i style="background:#70AD47"></i>Muito alto (0,81 a 1)</span>
+    <span class="sw"><i style="background:#A9D08E"></i>Alto (0,61 a 0,80)</span>
+    <span class="sw"><i style="background:#FFE699"></i>Médio (0,41 a 0,60)</span>
+    <span class="sw"><i style="background:#F4B084"></i>Baixo (0,21 a 0,40)</span>
+    <span class="sw"><i style="background:#F8696B"></i>Muito baixo (0 a 0,20)</span>
+  </div>
+  <div class="grade">
+    <table class="tab-bio" id="tab-bio"></table>
+    <div class="msg" id="bio-vazio" hidden></div>
+  </div>
+  <div class="corr-topo">
+    <h2 class="corr-tit">Correlação de Pearson: nematoides × atributos de solo</h2>
+    <div class="seletor" role="radiogroup" aria-label="Contagem de nematoides">
+      <button type="button" role="radio" data-unid="raiz" aria-checked="true">Raiz</button>
+      <button type="button" role="radio" data-unid="solo" aria-checked="false">Solo</button>
+    </div>
+  </div>
+  <p class="nota" id="corr-nota"></p>
+  <div class="leg-classes" id="corr-leg" hidden>
+    <span class="sw"><i style="background:var(--bar-r)"></i>Correlação positiva</span>
+    <span class="sw"><i style="background:var(--bar-ah)"></i>Correlação negativa</span>
+    <span>Barras cheias e * = significativa (p &lt; 0,05); barras claras = não significativa.</span>
+  </div>
+  <div class="corr-grid" id="corr-cartoes"></div>
+</section>
+
+<section class="painel" id="painel-foliar" role="tabpanel" aria-labelledby="guia-foliar" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="fo-estado"></select></label>
+    <label class="campo">Cliente<select id="fo-cliente"></select></label>
+    <label class="campo">Talhão<select id="fo-talhao"></select></label>
+    <label class="campo">Padrão<select id="fo-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="modo" role="radiogroup" aria-label="Amostra">
+      <button type="button" role="radio" data-modo="ah" aria-checked="true">Área homogênea</button>
+      <button type="button" role="radio" data-modo="r" aria-checked="false">Reboleira</button>
+      <button type="button" role="radio" data-modo="ambas" aria-checked="false">Ambas</button>
+    </div>
+    <button type="button" class="btn exp exp-topo" id="fx-todos" title="Médias, correlações de todos os nematoides e filtros">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Exportar Excel
+    </button>
+  </div>
+  <p class="nota" id="fol-nota"></p>
+  <div class="leg-classes" id="fol-leg" hidden>
+    <span>Referência Grower – Níveis críticos foliares Safra 24/25:</span>
+    <span class="sw"><i style="background:#FF7C80"></i>Baixo</span>
+    <span class="sw"><i style="background:#FFE699"></i>Médio</span>
+    <span class="sw"><i style="background:#70AD47"></i>Adequado</span>
+    <span class="sw"><i style="background:#4472C4"></i>Elevado</span>
+    <span>Co, Mo e Ni sem referência.</span>
+  </div>
+  <div class="grade">
+    <table class="tab-bio" id="tab-fol"></table>
+    <div class="msg" id="fol-vazio" hidden></div>
+  </div>
+  <div class="corr-topo">
+    <h2 class="corr-tit">Correlação de Pearson: nematoides × nutrientes foliares</h2>
+    <div class="seletor" role="radiogroup" aria-label="Contagem de nematoides">
+      <button type="button" role="radio" data-unid="raiz" aria-checked="true">Raiz</button>
+      <button type="button" role="radio" data-unid="solo" aria-checked="false">Solo</button>
+    </div>
+  </div>
+  <p class="nota" id="fcorr-nota"></p>
+  <div class="leg-classes" id="fcorr-leg" hidden>
+    <span class="sw"><i style="background:var(--bar-r)"></i>Correlação positiva</span>
+    <span class="sw"><i style="background:var(--bar-ah)"></i>Correlação negativa</span>
+    <span>Barras cheias e * = significativa (p &lt; 0,05); barras claras = não significativa.</span>
+  </div>
+  <div class="corr-grid" id="fcorr-cartoes"></div>
+</section>
+<section class="painel" id="painel-graos" role="tabpanel" aria-labelledby="guia-graos" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="gr-estado"></select></label>
+    <label class="campo">Cliente<select id="gr-cliente"></select></label>
+    <label class="campo">Talhão<select id="gr-talhao"></select></label>
+    <label class="campo">Padrão<select id="gr-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="modo" role="radiogroup" aria-label="Amostra">
+      <button type="button" role="radio" data-modo="ah" aria-checked="true">Área homogênea</button>
+      <button type="button" role="radio" data-modo="r" aria-checked="false">Reboleira</button>
+      <button type="button" role="radio" data-modo="ambas" aria-checked="false">Ambas</button>
+    </div>
+    <button type="button" class="btn exp exp-topo" id="gx-todos" title="Médias, correlações de todos os nematoides e filtros">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Exportar Excel
+    </button>
+  </div>
+  <p class="nota" id="grl-nota"></p>
+  <div class="leg-classes" id="grl-leg" hidden></div>
+  <div class="grade">
+    <table class="tab-bio" id="tab-gr"></table>
+    <div class="msg" id="grl-vazio" hidden></div>
+  </div>
+  <div class="corr-topo">
+    <h2 class="corr-tit">Correlação de Pearson: nematoides × nutrientes do grão</h2>
+    <div class="seletor" role="radiogroup" aria-label="Contagem de nematoides">
+      <button type="button" role="radio" data-unid="raiz" aria-checked="true">Raiz</button>
+      <button type="button" role="radio" data-unid="solo" aria-checked="false">Solo</button>
+    </div>
+  </div>
+  <p class="nota" id="gcorr-nota"></p>
+  <div class="leg-classes" id="gcorr-leg" hidden>
+    <span class="sw"><i style="background:var(--bar-r)"></i>Correlação positiva</span>
+    <span class="sw"><i style="background:var(--bar-ah)"></i>Correlação negativa</span>
+    <span>Barras cheias e * = significativa (p &lt; 0,05); barras claras = não significativa.</span>
+  </div>
+  <div class="corr-grid" id="gcorr-cartoes"></div>
+</section>
+  </div>
+</div>
+
+<div class="menu" id="menu" hidden role="dialog" aria-label="Filtro da coluna">
+  <div class="menu-topo">
+    <b id="menu-titulo"></b>
+    <div class="ordem">
+      <button type="button" data-ordem="asc">Crescente</button>
+      <button type="button" data-ordem="desc">Decrescente</button>
+    </div>
+  </div>
+  <div class="menu-busca"><input type="search" id="menu-busca" placeholder="Buscar valor" aria-label="Buscar valor"></div>
+  <div class="lista" id="menu-lista"></div>
+  <div class="menu-pe">
+    <button class="btn" type="button" id="menu-limpar">Limpar filtro</button>
+    <button class="btn btn-prim" type="button" id="menu-aplicar">Aplicar</button>
+  </div>
+</div>
+<div class="aviso" id="aviso" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/dados.js"></script>
+<script src="js/nematoides.js"></script>
+<script src="js/biologica.js"></script>
+<script src="js/foliar.js"></script>
+<script src="js/graos.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
