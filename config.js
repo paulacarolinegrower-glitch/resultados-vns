@@ -8,6 +8,6 @@
   NUNCA coloque aqui a chave "service_role".
 */
 window.VNS_CONFIG = {
-  SUPABASE_URL: "=https://nrdakbateznvnwfnbkof.supabase.co",
+  SUPABASE_URL: "https://nrdakbateznvnwfnbkof.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_d6_NVe1r0V5ad1JVoGFVfg_POL19jfq"
 };
