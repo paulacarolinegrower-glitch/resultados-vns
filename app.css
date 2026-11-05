@@ -157,8 +157,8 @@ td.vazio{color:var(--muted)}
 .tab-bio tbody tr:hover td.fixa{background:var(--row-hover)}
 .tab-bio td.ultfixa{box-shadow:inset -1px 0 0 var(--line)}
 #bio-vazio{margin:16px;border:0}
-#painel-biologica,#painel-foliar,#painel-graos{overflow:auto}
-#painel-biologica .grade,#painel-foliar .grade,#painel-graos .grade{flex:none;max-height:min(60vh,520px)}
+#painel-biologica,#painel-foliar,#painel-graos,#painel-prod{overflow:auto}
+#painel-biologica .grade,#painel-foliar .grade,#painel-graos .grade,#painel-prod .grade{flex:none;max-height:min(60vh,520px)}
 .corr-topo{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:14px;border-top:1px solid var(--line)}
 .corr-tit{margin:0;font-family:"Barlow Semi Condensed","Barlow",Arial,sans-serif;font-weight:600;font-size:19px;line-height:1.2}
 .seletor{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
@@ -216,3 +216,15 @@ dialog.dlg label{display:flex;flex-direction:column;gap:4px;font-size:13px;color
 dialog.dlg input{border:1px solid var(--line);background:var(--surface-2);color:var(--text);border-radius:8px;padding:9px 11px;font-size:15px}
 .dlg-pe{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 @media (max-width:640px){.usuario b{max-width:16ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.usuario small{display:none}}
+
+/* ---------- Edição da guia Dados ---------- */
+#tabela td[data-c]{cursor:cell}
+#tabela td.ed{background:#FFF1BF !important;color:#1B2620;box-shadow:inset 0 -2px 0 var(--ouro)}
+#tabela td.num.nova{color:#8A6200;font-weight:600}
+#tabela tbody tr.sel td{background:var(--row-hover)}
+#tabela tbody tr.sel td.num{box-shadow:inset 3px 0 0 var(--ouro);color:var(--text);font-weight:600}
+#tabela td.num{cursor:pointer}
+#tabela td.editando{padding:2px 4px}
+.cel-in{width:100%;min-width:90px;border:2px solid var(--ouro);border-radius:4px;padding:3px 6px;font:inherit;background:var(--surface);color:var(--text);outline:none}
+.pendentes{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FFF1BF;color:#1B2620;border:1px solid #E7CF7A;border-radius:10px;padding:8px 12px;font-size:14px;font-weight:500}
+.pendentes .btn{padding:6px 12px;font-size:14px}

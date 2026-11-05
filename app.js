@@ -96,6 +96,7 @@
     $("usuario-papel").textContent = ({admin:"Administrador", equipe:"Equipe Grower", cliente:"Cliente " + (perfil.cliente || "")})[perfil.papel] || "";
     $("usuario").hidden = false;
     $("btn-importar").hidden = perfil.papel === "cliente";
+    window.vnsDados.permitirEdicao(perfil.papel !== "cliente");
     if (perfil.papel === "cliente" && !perfil.cliente){ toast("Seu acesso ainda não foi liberado. Fale com a Grower.", true, 8000); return; }
     await carregarReferencias();
     await listarBases(true);
@@ -127,25 +128,70 @@
     toast("Carregando dados…", false, 20000);
     const {data:imp, error:e1} = await sb.from("importacoes").select("cabecalho").eq("id", b.id).single();
     if (e1){ toast("Erro ao carregar a base. " + traduz(e1), true); return; }
-    const linhas = [];
+    const linhas = [], ids = [];
     for (let de = 0; ; de += 1000){
-      const {data, error} = await sb.from("amostras").select("valores").eq("importacao_id", b.id).order("ordem").range(de, de + 999);
+      const {data, error} = await sb.from("amostras").select("id,valores").eq("importacao_id", b.id).order("ordem").range(de, de + 999);
       if (error){ toast("Erro ao carregar as linhas. " + traduz(error), true); return; }
-      data.forEach(x => linhas.push(x.valores));
+      data.forEach(x => { linhas.push(x.valores); ids.push(x.id); });
       if (data.length < 1000) break;
     }
     carregandoBase = true;
-    try { window.vnsDados.carregar([{name: b.aba || "Dados", aoa: [imp.cabecalho, ...linhas]}], b.arquivo || "Base salva"); }
+    try { window.vnsDados.carregar([{name: b.aba || "Dados", aoa: [imp.cabecalho, ...linhas]}], b.arquivo || "Base salva", ids); }
     finally { carregandoBase = false; }
     baseAtual = b.id; doBanco = true;
     $("sel-base").value = String(b.id);
+    atualizarPendentes();
     toast(`Base carregada: ${linhas.length} ${linhas.length === 1 ? "linha" : "linhas"}.`);
     atualizarBotoes();
   }
-  $("sel-base").addEventListener("change", e => { if (e.target.value) carregarBase(e.target.value); });
+  $("sel-base").addEventListener("change", e => {
+    if (!e.target.value) return;
+    if (temPendentes() && !confirm("Há alterações não salvas nesta base. Trocar de base e descartá-las?")){ e.target.value = String(baseAtual); return; }
+    carregarBase(e.target.value);
+  });
 
   /* Importação local (botão Importar planilha) = dados ainda não salvos */
-  document.addEventListener("dados-atualizados", () => { if (!carregandoBase){ doBanco = false; atualizarBotoes(); } });
+  document.addEventListener("dados-atualizados", e => { if (!carregandoBase && !(e.detail && e.detail.edicao)){ doBanco = false; atualizarBotoes(); } });
+
+  /* ---------- Edição: alterações pendentes ---------- */
+  const temPendentes = () => { if (!doBanco || !window.vnsDados) return false; const p = window.vnsDados.pendentes(); return p.editadas + p.novas + p.excluidas > 0; };
+  function atualizarPendentes(){
+    const p = window.vnsDados ? window.vnsDados.pendentes() : {editadas:0, novas:0, excluidas:0};
+    const partes = [];
+    if (p.editadas) partes.push(`${p.editadas} ${p.editadas === 1 ? "linha editada" : "linhas editadas"}`);
+    if (p.novas) partes.push(`${p.novas} ${p.novas === 1 ? "linha nova" : "linhas novas"}`);
+    if (p.excluidas) partes.push(`${p.excluidas} ${p.excluidas === 1 ? "linha excluída" : "linhas excluídas"}`);
+    $("pend-txt").textContent = "Alterações não salvas: " + partes.join(", ") + ".";
+    $("pendentes").hidden = !(doBanco && partes.length);
+  }
+  document.addEventListener("dados-editados", atualizarPendentes);
+  window.addEventListener("beforeunload", e => { if (temPendentes()){ e.preventDefault(); e.returnValue = ""; } });
+  $("btn-descartar").addEventListener("click", () => {
+    if (confirm("Descartar as alterações e voltar aos valores salvos no banco?")) carregarBase(baseAtual);
+  });
+  $("btn-salvar-ed").addEventListener("click", async () => {
+    const d = window.vnsDados.atual(), alt = window.vnsDados.alteracoes(), meta = metaDe(d.cab);
+    $("btn-salvar-ed").disabled = true;
+    toast("Salvando alterações…", false, 30000);
+    const {error} = await sb.rpc("salvar_edicoes", {
+      p_importacao: baseAtual, p_cabecalho: d.cab.map(String),
+      p_atualizar: alt.atualizar.map(x => ({id: x.id, ...meta(x.v)})),
+      p_inserir: alt.inserir.map(x => meta(x.v)),
+      p_excluir: alt.excluir
+    });
+    $("btn-salvar-ed").disabled = false;
+    if (error){ toast("Erro ao salvar as alterações. " + traduz(error), true, 9000); return; }
+    toast("Alterações salvas no banco.");
+    await carregarBase(baseAtual);
+  });
+  /* Separa as colunas de identificação e limpa os valores para gravar */
+  function metaDe(cab){
+    const col = re => cab.findIndex(h => re.test(String(h)));
+    const c = {estado:col(/estado/i), cliente:col(/cliente/i), fazenda:col(/fazenda/i), talhao:col(/talh/i), ponto:col(/^\s*ponto/i), padrao:col(/padr/i)};
+    const limpa = v => v instanceof Date ? v.toISOString() : (v === undefined || (typeof v === "number" && !isFinite(v)) ? null : v);
+    const txt = (v, k) => { if (c[k] < 0) return null; const x = v[c[k]]; return x === null || x === undefined || x === "" ? null : String(x); };
+    return v => ({estado:txt(v,"estado"), cliente:txt(v,"cliente"), fazenda:txt(v,"fazenda"), talhao:txt(v,"talhao"), ponto:txt(v,"ponto"), padrao:txt(v,"padrao"), valores:v.map(limpa)});
+  }
   function atualizarBotoes(){
     const p = perfil ? perfil.papel : "";
     const temDados = window.vnsDados && window.vnsDados.atual().cab.length > 0;
@@ -168,18 +214,14 @@
     finally { $("dlg-confirmar").disabled = false; }
   });
   async function salvarBase(safra){
-    const d = window.vnsDados.atual();
-    const col = re => d.cab.findIndex(h => re.test(String(h)));
-    const c = {estado:col(/estado/i), cliente:col(/cliente/i), fazenda:col(/fazenda/i), talhao:col(/talh/i), ponto:col(/^\s*ponto/i), padrao:col(/padr/i)};
-    const limpa = v => v instanceof Date ? v.toISOString() : (v === undefined || (typeof v === "number" && !isFinite(v)) ? null : v);
-    const txt = (l, k) => { if (c[k] < 0) return null; const v = l.v[c[k]]; return v === null || v === undefined || v === "" ? null : String(v); };
-    const linhas = d.linhas.map(l => ({estado:txt(l,"estado"), cliente:txt(l,"cliente"), fazenda:txt(l,"fazenda"), talhao:txt(l,"talhao"), ponto:txt(l,"ponto"), padrao:txt(l,"padrao"), valores:l.v.map(limpa)}));
+    const d = window.vnsDados.atual(), meta = metaDe(d.cab);
+    const linhas = d.linhas.map(l => meta(l.v));
     toast("Salvando no banco…", false, 30000);
     const {data:id, error} = await sb.rpc("salvar_importacao", {p_arquivo:d.arquivo, p_aba:d.aba, p_safra:safra, p_cabecalho:d.cab.map(String), p_linhas:linhas});
     if (error){ toast("Erro ao salvar. " + traduz(error), true, 8000); return false; }
     toast(`Base salva: ${linhas.length} linhas.`);
-    doBanco = true; baseAtual = id;
     await listarBases(false, id);
+    await carregarBase(id);   /* recarrega do banco para a edição saber o id de cada linha */
     return true;
   }
 

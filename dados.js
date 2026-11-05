@@ -1,7 +1,9 @@
 (function(){
   const VAZIO = "\u0000vazio";
   const $ = id => document.getElementById(id);
-  const st = { arquivo:"", abas:[], aba:"", cab:[], linhas:[], filtros:new Map(), ordem:null };
+  const st = { arquivo:"", abas:[], aba:"", cab:[], linhas:[], filtros:new Map(), ordem:null, ids:null,
+              editadas:new Set(), novas:new Set(), excluidas:[], celEd:new Set(), sel:null };
+  let proxUid = 1, podeEditar = true;
   const fmtNum = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:6});
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -27,8 +29,8 @@
     clearTimeout(aviso.t); aviso.t = setTimeout(() => a.hidden = true, 3200);
   }
 
-  function carregarAbas(abas, nome){
-    st.arquivo = nome; st.abas = abas;
+  function carregarAbas(abas, nome, ids){
+    st.arquivo = nome; st.abas = abas; st.ids = ids || null;
     const sel = $("sel-aba");
     sel.innerHTML = abas.map((a,i) => `<option value="${i}">${esc(a.name)}</option>`).join("");
     sel.hidden = abas.length < 2;
@@ -42,7 +44,8 @@
       const h = aoa[0] ? aoa[0][j] : null;
       return (h === null || h === undefined || h === "") ? `Coluna ${j+1}` : fmt(h);
     });
-    st.linhas = aoa.slice(1).map((r,k) => ({n:k+2, v:Array.from({length:larg}, (_,j) => r[j] === undefined ? null : r[j])}));
+    st.linhas = aoa.slice(1).map((r,k) => ({n:k+2, uid:proxUid++, dbId:(i === 0 && st.ids) ? st.ids[k] : null, v:Array.from({length:larg}, (_,j) => r[j] === undefined ? null : r[j])}));
+    st.editadas = new Set(); st.novas = new Set(); st.excluidas = []; st.celEd = new Set(); st.sel = null;
     /* Colunas da Safra 26/27: aparecem vazias se a planilha ainda não as tiver */
     const normCab = t => String(t).replace(/\s+/g, " ").trim().toLowerCase();
     ["Produtividade Safra 26/27", "PMG 26/27"].forEach(nome => {
@@ -51,11 +54,12 @@
     st.filtros = new Map(); st.ordem = null;
     $("nome-arquivo").textContent = st.arquivo;
     $("nome-arquivo").title = st.arquivo;
-    $("info-arquivo").textContent = `Aba “${st.aba}”, ${st.linhas.length} linhas e ${larg} colunas`;
+    $("info-arquivo").textContent = `Aba “${st.aba}”, ${st.linhas.length} linhas e ${larg} colunas` + (podeEditar ? ". Clique duas vezes numa célula para editar." : "");
     fecharMenu();
     desenhar();
     window.__dadosVNS = {cab:st.cab, linhas:st.linhas};
     document.dispatchEvent(new CustomEvent("dados-atualizados", {detail:window.__dadosVNS}));
+    document.dispatchEvent(new CustomEvent("dados-editados"));
   }
 
   function visiveis(ignorar){
@@ -82,18 +86,97 @@
     h += "</tr></thead><tbody>";
     const partes = [h];
     for (const l of r){
-      let s = `<tr><td class="num">${l.n}</td>`;
-      for (const v of l.v){
-        const isNum = typeof v === "number";
-        s += `<td${isNum ? ' class="n"' : ""}>${esc(fmt(v))}</td>`;
-      }
+      const nova = st.novas.has(l.uid);
+      let s = `<tr data-u="${l.uid}"${st.sel === l.uid ? ' class="sel"' : ""}><td class="num${nova ? " nova" : ""}" title="${podeEditar ? "Clique para selecionar a linha" : ""}">${nova ? "nova" : l.n}</td>`;
+      l.v.forEach((v,j) => {
+        const cls = (typeof v === "number" ? "n" : "") + (st.celEd.has(l.uid + ":" + j) ? " ed" : "");
+        s += `<td data-c="${j}"${cls.trim() ? ` class="${cls.trim()}"` : ""}>${esc(fmt(v))}</td>`;
+      });
       partes.push(s + "</tr>");
     }
     partes.push("</tbody>");
     tab.innerHTML = partes.join("");
     $("contagem").innerHTML = `Mostrando <strong>${r.length}</strong> de ${st.linhas.length} linhas`;
     $("limpar").disabled = st.filtros.size === 0 && !st.ordem;
+    $("btn-del-linha").disabled = !st.sel || !st.linhas.some(l => l.uid === st.sel);
   }
+
+  /* ---------- Edição das células ---------- */
+  const paraTexto = v => v === null || v === undefined ? "" : (typeof v === "number" ? String(v).replace(".", ",") : (v instanceof Date ? v.toLocaleDateString("pt-BR") : String(v)));
+  function lerTexto(t){
+    t = String(t).trim();
+    if (t === "") return null;
+    if (/^-?\d+(,\d+)?$/.test(t)) return parseFloat(t.replace(",", "."));
+    if (/^-?[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(t)) return parseFloat(t.replace(/\./g, "").replace(",", "."));
+    if (/^-?\d*\.\d+$/.test(t)) return parseFloat(t);
+    return t;
+  }
+  const linhaPorUid = uid => st.linhas.find(l => l.uid === uid);
+  function notificar(){
+    desenhar();
+    window.__dadosVNS = {cab:st.cab, linhas:st.linhas, edicao:true};
+    document.dispatchEvent(new CustomEvent("dados-atualizados", {detail:window.__dadosVNS}));
+    document.dispatchEvent(new CustomEvent("dados-editados"));
+  }
+  function editar(td){
+    if (!podeEditar || !td || td.querySelector("input")) return;
+    const uid = +td.parentElement.dataset.u, c = +td.dataset.c, l = linhaPorUid(uid); if (!l) return;
+    const inp = document.createElement("input");
+    inp.className = "cel-in"; inp.value = paraTexto(l.v[c]); inp.setAttribute("aria-label", "Editar " + st.cab[c]);
+    td.classList.add("editando"); td.textContent = ""; td.appendChild(inp); inp.focus(); inp.select();
+    let feito = false;
+    const fim = (salvar, prox) => {
+      if (feito) return; feito = true;
+      if (salvar){
+        const novo = lerTexto(inp.value), velho = l.v[c];
+        const igual = (novo === null && (velho === null || velho === undefined || velho === "")) || (velho instanceof Date ? paraTexto(velho) === inp.value.trim() : novo === velho);
+        if (!igual){
+          l.v[c] = novo; st.celEd.add(uid + ":" + c);
+          if (!st.novas.has(uid) && l.dbId) st.editadas.add(uid);
+          notificar();
+        } else desenhar();
+      } else desenhar();
+      if (prox !== undefined){
+        const alvo = $("tabela").querySelector(`tr[data-u="${uid}"] td[data-c="${prox}"]`);
+        if (alvo){ alvo.scrollIntoView({block:"nearest", inline:"nearest"}); editar(alvo); }
+      }
+    };
+    inp.addEventListener("keydown", e => {
+      if (e.key === "Enter"){ e.preventDefault(); fim(true); }
+      else if (e.key === "Escape"){ e.preventDefault(); fim(false); }
+      else if (e.key === "Tab"){ e.preventDefault(); const p = c + (e.shiftKey ? -1 : 1); fim(true, p >= 0 && p < st.cab.length ? p : undefined); }
+    });
+    inp.addEventListener("blur", () => fim(true));
+  }
+  $("tabela").addEventListener("dblclick", e => { const td = e.target.closest("td[data-c]"); if (td) editar(td); });
+  $("tabela").addEventListener("click", e => {
+    const td = e.target.closest("td.num"); if (!td || !podeEditar) return;
+    const uid = +td.parentElement.dataset.u; st.sel = st.sel === uid ? null : uid; desenhar();
+  });
+  /* Adicionar linha: copia Estado, Cliente, Fazenda, Talhão e Padrão da linha selecionada (se houver) */
+  $("btn-add-linha").addEventListener("click", () => {
+    if (!st.cab.length) return aviso("Carregue uma base antes de adicionar linhas.", true);
+    const base = st.sel ? linhaPorUid(st.sel) : null;
+    const v = st.cab.map(() => null);
+    if (base) st.cab.forEach((h,j) => { if (/estado|cliente|fazenda|talh|padr/i.test(h)) v[j] = base.v[j]; });
+    const l = {n:"nova", uid:proxUid++, dbId:null, v};
+    st.linhas.push(l); st.novas.add(l.uid); st.sel = l.uid;
+    st.filtros.clear(); st.ordem = null;
+    notificar();
+    const g = $("grade"); g.scrollTop = g.scrollHeight;
+    const jPonto = st.cab.findIndex(h => /^\s*ponto/i.test(h)), jV = jPonto >= 0 ? jPonto : st.cab.findIndex((h,j) => v[j] === null);
+    const td = $("tabela").querySelector(`tr[data-u="${l.uid}"] td[data-c="${Math.max(0, jV)}"]`);
+    if (td){ td.scrollIntoView({block:"nearest", inline:"center"}); editar(td); }
+  });
+  $("btn-del-linha").addEventListener("click", () => {
+    const l = st.sel ? linhaPorUid(st.sel) : null; if (!l) return;
+    const desc = st.cab.map((h,j) => /cliente|talh|ponto|padr/i.test(h) && l.v[j] !== null ? fmt(l.v[j]) : null).filter(Boolean).join(" · ");
+    if (!confirm(`Excluir a linha ${l.n}${desc ? " (" + desc + ")" : ""}?`)) return;
+    st.linhas = st.linhas.filter(x => x !== l);
+    if (l.dbId) st.excluidas.push(l.dbId);
+    st.novas.delete(l.uid); st.editadas.delete(l.uid); st.sel = null;
+    notificar();
+  });
 
   /* Menu de filtro */
   let mCol = -1, mSel = null, mValores = [], mOrdem = null;
@@ -237,8 +320,15 @@
 
   /* API para o app (bases salvas no Supabase) */
   window.vnsDados = {
-    carregar: (abas, nome) => carregarAbas(abas, nome),
-    atual: () => ({arquivo: st.arquivo, aba: st.aba, cab: st.cab.slice(), linhas: st.linhas})
+    carregar: (abas, nome, ids) => carregarAbas(abas, nome, ids),
+    atual: () => ({arquivo: st.arquivo, aba: st.aba, cab: st.cab.slice(), linhas: st.linhas}),
+    permitirEdicao: v => { podeEditar = !!v; $("btn-add-linha").hidden = $("btn-del-linha").hidden = !podeEditar; desenhar(); },
+    pendentes: () => ({editadas: st.editadas.size, novas: st.novas.size, excluidas: st.excluidas.length}),
+    alteracoes: () => ({
+      atualizar: st.linhas.filter(l => l.dbId && st.editadas.has(l.uid)).map(l => ({id: l.dbId, v: l.v})),
+      inserir: st.linhas.filter(l => st.novas.has(l.uid)).map(l => ({v: l.v})),
+      excluir: st.excluidas.slice()
+    })
   };
   desenhar();
 })();

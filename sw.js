@@ -1,9 +1,9 @@
 /* Resultados VNS – service worker (instalação como app e funcionamento offline da interface)
    Ao publicar uma nova versão do app, aumente o número em VERSAO. */
-const VERSAO = "vns-v2";
+const VERSAO = "vns-v3";
 const ARQUIVOS = [
   "./", "index.html", "app.css", "manifest.webmanifest",
-  "config.js", "dados.js", "nematoides.js", "biologica.js", "foliar.js", "graos.js", "app.js",
+  "config.js", "dados.js", "nematoides.js", "biologica.js", "foliar.js", "graos.js", "produtividade.js", "app.js",
   "icon-192.png", "icon-512.png"
 ];
 const CDNS = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];

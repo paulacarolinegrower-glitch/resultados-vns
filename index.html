@@ -74,6 +74,7 @@
     <button class="guia" role="tab" id="guia-biologica" aria-selected="false" aria-controls="painel-biologica" data-alvo="biologica" tabindex="-1">Análise Biológica</button>
     <button class="guia" role="tab" id="guia-foliar" aria-selected="false" aria-controls="painel-foliar" data-alvo="foliar" tabindex="-1">Análise Foliar</button>
     <button class="guia" role="tab" id="guia-graos" aria-selected="false" aria-controls="painel-graos" data-alvo="graos" tabindex="-1">Análise de Grãos</button>
+    <button class="guia" role="tab" id="guia-prod" aria-selected="false" aria-controls="painel-prod" data-alvo="prod" tabindex="-1">Produtividade e PMG</button>
   </nav>
   <div class="conteudo">
 <main class="painel" id="painel-dados" role="tabpanel" aria-labelledby="guia-dados">
@@ -90,6 +91,8 @@
       Salvar no banco
     </button>
     <button class="btn" id="btn-excluir" type="button" hidden title="Apaga a base selecionada do banco">Excluir base</button>
+    <button class="btn" id="btn-add-linha" type="button" title="Adiciona um ponto no fim da tabela (copia Estado, Cliente, Fazenda, Talhão e Padrão da linha selecionada)">+ Adicionar linha</button>
+    <button class="btn" id="btn-del-linha" type="button" disabled title="Selecione a linha clicando no número dela, à esquerda">Excluir linha</button>
     <select class="aba" id="sel-aba" aria-label="Aba da planilha" hidden></select>
     <div class="espaco"></div>
     <span class="contagem" id="contagem"></span>
@@ -101,6 +104,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/><path d="m16 16 5 5m0-5-5 5"/></svg>
       Limpar filtros
     </button>
+  </div>
+  <div class="pendentes" id="pendentes" hidden role="status">
+    <span id="pend-txt"></span>
+    <div class="espaco"></div>
+    <button class="btn" id="btn-descartar" type="button">Descartar</button>
+    <button class="btn btn-prim" id="btn-salvar-ed" type="button">Salvar alterações</button>
   </div>
   <div class="grade" id="grade">
     <table id="tabela"></table>
@@ -267,6 +276,44 @@
   </div>
   <div class="corr-grid" id="gcorr-cartoes"></div>
 </section>
+<section class="painel" id="painel-prod" role="tabpanel" aria-labelledby="guia-prod" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="pr-estado"></select></label>
+    <label class="campo">Cliente<select id="pr-cliente"></select></label>
+    <label class="campo">Talhão<select id="pr-talhao"></select></label>
+    <label class="campo">Padrão<select id="pr-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="modo" role="radiogroup" aria-label="Amostra">
+      <button type="button" role="radio" data-modo="ah" aria-checked="true">Área homogênea</button>
+      <button type="button" role="radio" data-modo="r" aria-checked="false">Reboleira</button>
+      <button type="button" role="radio" data-modo="ambas" aria-checked="false">Ambas</button>
+    </div>
+    <button type="button" class="btn exp exp-topo" id="px-todos" title="Médias, correlações de todos os nematoides e filtros">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      Exportar Excel
+    </button>
+  </div>
+  <p class="nota" id="prl-nota"></p>
+  <div class="leg-classes" id="prl-leg" hidden></div>
+  <div class="grade">
+    <table class="tab-bio" id="tab-pr"></table>
+    <div class="msg" id="prl-vazio" hidden></div>
+  </div>
+  <div class="corr-topo">
+    <h2 class="corr-tit">Correlação de Pearson: nematoides × produtividade e PMG</h2>
+    <div class="seletor" role="radiogroup" aria-label="Contagem de nematoides">
+      <button type="button" role="radio" data-unid="raiz" aria-checked="true">Raiz</button>
+      <button type="button" role="radio" data-unid="solo" aria-checked="false">Solo</button>
+    </div>
+  </div>
+  <p class="nota" id="pcorr-nota"></p>
+  <div class="leg-classes" id="pcorr-leg" hidden>
+    <span class="sw"><i style="background:var(--bar-r)"></i>Correlação positiva</span>
+    <span class="sw"><i style="background:var(--bar-ah)"></i>Correlação negativa</span>
+    <span>Barras cheias e * = significativa (p &lt; 0,05); barras claras = não significativa.</span>
+  </div>
+  <div class="corr-grid" id="pcorr-cartoes"></div>
+</section>
   </div>
 </div>
 
@@ -293,6 +340,7 @@
 <script src="biologica.js"></script>
 <script src="foliar.js"></script>
 <script src="graos.js"></script>
+<script src="produtividade.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
