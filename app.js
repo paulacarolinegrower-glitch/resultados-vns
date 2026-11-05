@@ -14,13 +14,21 @@
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
 
-  const configurado = cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && !/SEU-PROJETO|COLE_AQUI/.test(cfg.SUPABASE_URL + cfg.SUPABASE_ANON_KEY);
+  /* Aceita valores colados com o nome da variável ou com espaços/aspas extras (ex.: NEXT_PUBLIC_SUPABASE_URL=https://...) */
+  const limpa = v => String(v || "").trim().replace(/^[A-Z0-9_]+\s*=\s*/, "").replace(/^["']+|["']+$/g, "").trim();
+  const URL_SB = limpa(cfg.SUPABASE_URL).replace(/\/(rest|auth)\/v1.*$/, "").replace(/\/+$/, ""), CHAVE_SB = limpa(cfg.SUPABASE_ANON_KEY);
+  const configurado = URL_SB && CHAVE_SB && !/SEU-PROJETO|COLE_AQUI/.test(URL_SB + CHAVE_SB);
   if (!window.supabase) return msgLogin("Não foi possível carregar o Supabase. Verifique a conexão com a internet e recarregue.");
-  if (!configurado) return msgLogin("Falta configurar o Supabase: preencha a URL e a chave pública em js/config.js.");
+  if (!configurado) return msgLogin("Falta configurar o Supabase: preencha a URL e a chave pública em config.js.");
 
   /* Link de convite ou de nova senha: o tipo vem no endereço */
   const tipoLink = (/type=(invite|recovery)/.exec(location.hash + location.search) || [])[1] || null;
-  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(URL_SB)) return msgLogin("A URL do Supabase em config.js parece incorreta. Ela deve ser como https://xxxxxxxx.supabase.co (valor atual: " + URL_SB.slice(0, 60) + ").");
+  let sb;
+  try { sb = window.supabase.createClient(URL_SB, CHAVE_SB); }
+  catch(e){ return msgLogin("Erro na configuração do Supabase (config.js): " + e.message); }
+  /* Se o Supabase não responder, explica em vez de ficar em "Carregando…" */
+  setTimeout(() => { if (!$("login").hidden && $("login-msg").textContent === "Carregando…") msgLogin("O Supabase não respondeu. Confira a URL e a chave em config.js e a conexão com a internet."); }, 12000);
   let perfil = null, bases = [], baseAtual = null, doBanco = false, carregandoBase = false, iniciado = false, pedirSenha = !!tipoLink;
 
   function mostrar(qual){
