@@ -46,9 +46,9 @@
     });
     st.linhas = aoa.slice(1).map((r,k) => ({n:k+2, uid:proxUid++, dbId:(i === 0 && st.ids) ? st.ids[k] : null, v:Array.from({length:larg}, (_,j) => r[j] === undefined ? null : r[j])}));
     st.editadas = new Set(); st.novas = new Set(); st.excluidas = []; st.celEd = new Set(); st.sel = null;
-    /* Colunas da Safra 26/27: aparecem vazias se a planilha ainda não as tiver */
+    /* Colunas da Safra 26/27 e coordenadas do ponto: aparecem vazias se a planilha ainda não as tiver */
     const normCab = t => String(t).replace(/\s+/g, " ").trim().toLowerCase();
-    ["Produtividade Safra 26/27", "PMG 26/27"].forEach(nome => {
+    ["Produtividade Safra 26/27", "PMG 26/27", "Latitude", "Longitude"].forEach(nome => {
       if (!st.cab.some(h => normCab(h) === normCab(nome))){ st.cab.push(nome); st.linhas.forEach(l => l.v.push(null)); }
     });
     st.filtros = new Map(); st.ordem = null;
