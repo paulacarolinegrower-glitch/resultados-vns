@@ -75,6 +75,7 @@
     <button class="guia" role="tab" id="guia-foliar" aria-selected="false" aria-controls="painel-foliar" data-alvo="foliar" tabindex="-1">Análise Foliar</button>
     <button class="guia" role="tab" id="guia-graos" aria-selected="false" aria-controls="painel-graos" data-alvo="graos" tabindex="-1">Análise de Grãos</button>
     <button class="guia" role="tab" id="guia-prod" aria-selected="false" aria-controls="painel-prod" data-alvo="prod" tabindex="-1">Produtividade e PMG</button>
+    <button class="guia" role="tab" id="guia-saude" aria-selected="false" aria-controls="painel-saude" data-alvo="saude" tabindex="-1">Saúde do Solo – Embrapa</button>
   </nav>
   <div class="conteudo">
 <main class="painel" id="painel-dados" role="tabpanel" aria-labelledby="guia-dados">
@@ -318,6 +319,79 @@
   </div>
   <div class="corr-grid" id="pcorr-cartoes"></div>
 </section>
+
+<section class="painel" id="painel-saude" role="tabpanel" aria-labelledby="guia-saude" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="sd-estado"></select></label>
+    <label class="campo">Cliente<select id="sd-cliente"></select></label>
+    <label class="campo">Talhão<select id="sd-talhao"></select></label>
+    <label class="campo">Padrão<select id="sd-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="modo" role="radiogroup" aria-label="Amostra">
+      <button type="button" role="radio" data-modo="ah" aria-checked="true">Área homogênea</button>
+      <button type="button" role="radio" data-modo="r" aria-checked="false">Reboleira</button>
+      <button type="button" role="radio" data-modo="ambas" aria-checked="false">Ambas</button>
+    </div>
+  </div>
+  <div class="sd-ref">
+    <span class="sd-ref-tit">Referência Embrapa</span>
+    <label class="campo">Recorte<select id="sd-recorte"><option value="mun">Município dos pontos</option><option value="uf" selected>Estado dos pontos</option><option value="br">Brasil</option></select></label>
+    <label class="campo">Cultura<select id="sd-cultura"><option value="soja" selected>Soja</option><option value="todas">Todas as culturas</option></select></label>
+    <label class="campo">Textura<select id="sd-textura"><option value="auto" selected>Automática (pela argila)</option><option value="todas">Todas</option><option value="Arenosa">Arenosa</option><option value="Media">Média</option><option value="Argilosa">Argilosa</option><option value="Muito Argilosa">Muito argilosa</option><option value="Siltosa">Siltosa</option></select></label>
+    <span class="sd-ref-n" id="sd-ref-n"></span>
+  </div>
+  <p class="nota sd-avisos" id="sd-avisos"></p>
+  <div class="leg-classes">
+    <span>Referência Embrapa – Índices (0 a 1):</span>
+    <span class="sw"><i style="background:#F8696B"></i>Muito baixo (até 0,20)</span>
+    <span class="sw"><i style="background:#F4B084"></i>Baixo (até 0,40)</span>
+    <span class="sw"><i style="background:#FFE699"></i>Médio (até 0,60)</span>
+    <span class="sw"><i style="background:#A9D08E"></i>Elevado (até 0,80)</span>
+    <span class="sw"><i style="background:#70AD47"></i>Muito elevado (acima de 0,80)</span>
+  </div>
+  <div class="msg" id="sd-vazio" hidden></div>
+  <div class="sd-conteudo" id="sd-conteudo">
+    <h2 class="sd-sec">1. Nossos pontos × referência Embrapa</h2>
+    <p class="nota">Distribuição dos pontos de cada padrão nas classes, lado a lado com as amostras da Plataforma Saúde do Solo no mesmo recorte. Com “Ambas”, uma linha para Área homogênea (AH) e outra para Reboleira (R). O percentil indica em que posição cada média ficaria entre as amostras da Embrapa.</p>
+    <div class="sd-cmp" id="sd-cmp"></div>
+    <div class="cartao sd-card">
+      <div class="cartao-topo"><h2>Saúde do Solo (diagrama Embrapa: Ciclagem × Armazenamento)</h2><div class="acoes exp"><button type="button" class="btn btn-mini" data-sdimg title="Baixar como imagem (PNG)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>Imagem</button></div></div>
+      <div class="sd-diag-grid">
+        <div><svg id="sd-diag" viewBox="0 0 400 400" role="img" aria-label="Diagrama de Saúde do Solo com os pontos"></svg><div class="leg-classes" id="sd-diag-leg"></div></div>
+        <div id="sd-diag-dir"></div>
+      </div>
+    </div>
+    <h2 class="sd-sec">2. Distribuição dos nossos pontos por classe</h2>
+    <p class="nota" id="sd-pz-nota"></p>
+    <div class="sd-pizzas" id="sd-pizzas"></div>
+    <div class="cartao sd-card">
+      <div class="cartao-topo">
+        <h2>3. Mapa dos pontos</h2>
+        <div class="seletor" id="sd-mapa-ind" role="radiogroup" aria-label="Cor dos pontos">
+          <button type="button" role="radio" data-i="saude" aria-checked="true">Saúde do Solo</button>
+          <button type="button" role="radio" data-i="iqs" aria-checked="false">IQS</button>
+          <button type="button" role="radio" data-i="cic" aria-checked="false">Ciclagem</button>
+          <button type="button" role="radio" data-i="arm" aria-checked="false">Armazenamento</button>
+          <button type="button" role="radio" data-i="sup" aria-checked="false">Suprimento</button>
+        </div>
+        <div class="acoes exp"><button type="button" class="btn btn-mini" data-sdimg title="Baixar como imagem (PNG)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>Imagem</button></div>
+      </div>
+      <div class="sd-mapa" id="sd-mapa"></div>
+      <p class="nota" id="sd-mapa-nota"></p>
+    </div>
+    <div class="sd-tab-topo">
+      <h2 class="sd-sec" id="sd-tit-tab">4. Médias por talhão e padrão</h2>
+      <div class="acoes exp">
+        <button type="button" class="btn btn-mini" id="sd-tab-img" title="Baixar a tabela como imagem (PNG)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>Imagem</button>
+        <button type="button" class="btn btn-mini" id="sd-tab-xls" title="Baixar a tabela em Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Excel</button>
+      </div>
+    </div>
+    <div class="grade"><table class="tab-bio" id="sd-tab"></table></div>
+    <p class="nota">Percentil = posição do valor entre as amostras da Embrapa do recorte (50 = mediana; 80 = melhor que 80% das amostras). Médias dos pontos de cada talhão + padrão.</p>
+    <p class="nota sd-fonte" id="sd-fonte"></p>
+  </div>
+</section>
+
   </div>
 </div>
 
@@ -345,6 +419,8 @@
 <script src="foliar.js"></script>
 <script src="graos.js"></script>
 <script src="produtividade.js"></script>
+<script src="saude_ref.js"></script>
+<script src="saude.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
