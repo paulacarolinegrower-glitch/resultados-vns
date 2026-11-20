@@ -111,6 +111,7 @@
   function faixasDe(nome){ const n = norm(nome); const f = tabelaRef().find(([re]) => re.test(n)); return f ? {lim:f[1], cores:f[2] || COR6} : null; }
   function classe(nome, v){
     const f = faixasDe(nome); if (!f) return null;
+    v = Math.round(v * 100) / 100;   /* classifica pelo valor arredondado em 2 casas, o mesmo que aparece na tabela */
     let i = f.lim.findIndex(l => v <= l); if (i < 0) i = f.lim.length;
     return f.cores[i];
   }
