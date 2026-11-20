@@ -46,11 +46,26 @@
     });
     st.linhas = aoa.slice(1).map((r,k) => ({n:k+2, uid:proxUid++, dbId:(i === 0 && st.ids) ? st.ids[k] : null, v:Array.from({length:larg}, (_,j) => r[j] === undefined ? null : r[j])}));
     st.editadas = new Set(); st.novas = new Set(); st.excluidas = []; st.celEd = new Set(); st.sel = null;
-    /* Colunas da Safra 26/27 e coordenadas do ponto: aparecem vazias se a planilha ainda não as tiver */
-    const normCab = t => String(t).replace(/\s+/g, " ").trim().toLowerCase();
-    ["Produtividade Safra 26/27", "PMG 26/27", "Latitude", "Longitude"].forEach(nome => {
+    /* Colunas da Safra 26/27, coordenadas e município do ponto: aparecem vazias se a planilha ainda não as tiver */
+    const normCab = t => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+    ["Produtividade Safra 26/27", "PMG 26/27", "Latitude", "Longitude", "Município"].forEach(nome => {
       if (!st.cab.some(h => normCab(h) === normCab(nome))){ st.cab.push(nome); st.linhas.forEach(l => l.v.push(null)); }
     });
+    /* Latitude, Longitude e Município ficam logo após "Nome cliente" */
+    st.reordenou = false;
+    const iCli = st.cab.findIndex(h => normCab(h) === "nome cliente");
+    if (iCli >= 0){
+      const mover = ["Latitude", "Longitude", "Município"].map(nome => st.cab.findIndex(h => normCab(h) === normCab(nome)));
+      const resto = st.cab.map((_,j) => j).filter(j => !mover.includes(j));
+      const pos = resto.indexOf(iCli) + 1;
+      const ordem = [...resto.slice(0, pos), ...mover, ...resto.slice(pos)];
+      if (ordem.some((j,k) => j !== k)){
+        st.cab = ordem.map(j => st.cab[j]);
+        st.linhas.forEach(l => { const v = l.v; l.v = ordem.map(j => v[j]); });
+        /* base do banco gravada em outra ordem: no próximo "Salvar alterações" todas as linhas são regravadas na ordem nova */
+        st.reordenou = !!st.ids;
+      }
+    }
     st.filtros = new Map(); st.ordem = null;
     $("nome-arquivo").textContent = st.arquivo;
     $("nome-arquivo").title = st.arquivo;
@@ -72,7 +87,7 @@
     const tab = $("tabela");
     const tem = st.cab.length > 0;
     $("vazio").hidden = tem;
-    if (!tem){ tab.innerHTML = ""; $("contagem").textContent = ""; $("limpar").disabled = true; return; }
+    if (!tem){ tab.innerHTML = ""; $("contagem").textContent = ""; $("limpar").disabled = true; $("btn-modelo").disabled = true; return; }
     let r = visiveis(-1);
     if (st.ordem){ const {col,dir} = st.ordem; r = r.slice().sort((a,b) => compara(a.v[col], b.v[col]) * (dir === "asc" ? 1 : -1)); }
     const icoF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg>';
@@ -98,6 +113,7 @@
     tab.innerHTML = partes.join("");
     $("contagem").innerHTML = `Mostrando <strong>${r.length}</strong> de ${st.linhas.length} linhas`;
     $("limpar").disabled = st.filtros.size === 0 && !st.ordem;
+    $("btn-modelo").disabled = false;
     $("btn-del-linha").disabled = !st.sel || !st.linhas.some(l => l.uid === st.sel);
   }
 
@@ -294,6 +310,29 @@
   }
   $("exportar-dados").addEventListener("click", exportarDados);
 
+  /* Base vazia: só a linha de cabeçalhos, na ordem atual das colunas, para preencher e importar */
+  async function baixarModelo(){
+    if (typeof XLSX === "undefined"){ aviso("A biblioteca do Excel não carregou. Recarregue a página.", true); return; }
+    if (!st.cab.length){ aviso("Nenhuma planilha carregada.", true); return; }
+    const ws = XLSX.utils.aoa_to_sheet([st.cab.map(String)]);
+    ws["!cols"] = st.cab.map(h => ({wch: Math.min(40, Math.max(10, String(h).length + 2))}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Dados");
+    const blob = new Blob([XLSX.write(wb, {bookType:"xlsx", type:"array"})]);
+    const nome = "base_vazia_resultados_vns.xlsx";
+    const dl = await dlDados;
+    if (dl){
+      try{ await dl.save({filename:nome, data:blob}); }
+      catch(e){ if (e && e.code === "declined") return; aviso(e && e.code === "rate_limited" ? "Já há um arquivo aguardando confirmação. Tente de novo em instantes." : "Não foi possível salvar o arquivo aqui.", true); }
+      return;
+    }
+    if (window.claude){ aviso("Exportação indisponível nesta visualização.", true); return; }
+    const url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+  $("btn-modelo").addEventListener("click", baixarModelo);
+
   /* Importação */
   function importar(arq){
     if (!arq) return;
@@ -325,7 +364,7 @@
     permitirEdicao: v => { podeEditar = !!v; $("btn-add-linha").hidden = $("btn-del-linha").hidden = !podeEditar; desenhar(); },
     pendentes: () => ({editadas: st.editadas.size, novas: st.novas.size, excluidas: st.excluidas.length}),
     alteracoes: () => ({
-      atualizar: st.linhas.filter(l => l.dbId && st.editadas.has(l.uid)).map(l => ({id: l.dbId, v: l.v})),
+      atualizar: st.linhas.filter(l => l.dbId && (st.reordenou || st.editadas.has(l.uid))).map(l => ({id: l.dbId, v: l.v})),
       inserir: st.linhas.filter(l => st.novas.has(l.uid)).map(l => ({v: l.v})),
       excluir: st.excluidas.slice()
     })
