@@ -76,6 +76,8 @@
     <button class="guia" role="tab" id="guia-graos" aria-selected="false" aria-controls="painel-graos" data-alvo="graos" tabindex="-1">Análise de Grãos</button>
     <button class="guia" role="tab" id="guia-prod" aria-selected="false" aria-controls="painel-prod" data-alvo="prod" tabindex="-1">Produtividade e PMG</button>
     <button class="guia" role="tab" id="guia-saude" aria-selected="false" aria-controls="painel-saude" data-alvo="saude" tabindex="-1">Saúde do Solo – Embrapa</button>
+    <button class="guia" role="tab" id="guia-b4a" aria-selected="false" aria-controls="painel-b4a" data-alvo="b4a" tabindex="-1">Microbiologia do Solo (B4A)</button>
+    <button class="guia" role="tab" id="guia-laudo" aria-selected="false" aria-controls="painel-laudo" data-alvo="laudo" tabindex="-1">Laudo do Talhão</button>
   </nav>
   <div class="conteudo">
 <main class="painel" id="painel-dados" role="tabpanel" aria-labelledby="guia-dados">
@@ -392,6 +394,79 @@
   </div>
 </section>
 
+<section class="painel" id="painel-b4a" role="tabpanel" aria-labelledby="guia-b4a" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="bq-estado"></select></label>
+    <label class="campo">Cliente<select id="bq-cliente"></select></label>
+    <label class="campo">Talhão<select id="bq-talhao"></select></label>
+    <label class="campo">Padrão<select id="bq-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="modo" role="radiogroup" aria-label="Amostra">
+      <button type="button" role="radio" data-modo="ah" aria-checked="true">Área homogênea</button>
+      <button type="button" role="radio" data-modo="r" aria-checked="false">Reboleira</button>
+      <button type="button" role="radio" data-modo="ambas" aria-checked="false">Ambas</button>
+    </div>
+    <button type="button" class="btn bq-equipe" id="bq-modelo" hidden title="Planilha para preencher uma linha por laudo B4A"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Baixar modelo</button>
+    <label class="btn bq-equipe" for="bq-entrada" hidden title="Importa a planilha de laudos B4A preenchida"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>Importar laudos</label>
+    <input class="oculto" type="file" id="bq-entrada" accept=".xlsx,.xls">
+    <button type="button" class="btn exp" id="bq-excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Exportar Excel</button>
+  </div>
+  <p class="nota" id="bq-nota"></p>
+  <div class="msg" id="bq-vazio" hidden></div>
+  <div class="bq-folha" id="bq-conteudo" hidden>
+    <div class="bq-id" id="bq-id"></div>
+    <div class="bq-hero" id="bq-hero"></div>
+    <div class="bq-sub" id="bq-sub"></div>
+    <div id="bq-secoes"></div>
+    <div id="bq-comp"></div>
+    <div class="bq-sec"><h2>Biodiversidade</h2><p>Tabela taxonômica da amostra.</p></div>
+    <div class="bq-bio" id="bq-bio"></div>
+  </div>
+</section>
+
+<section class="painel" id="painel-laudo" role="tabpanel" aria-labelledby="guia-laudo" hidden>
+  <div class="barra">
+    <label class="campo">Estado<select id="ld-estado"></select></label>
+    <label class="campo">Cliente<select id="ld-cliente"></select></label>
+    <label class="campo">Talhão<select id="ld-talhao"></select></label>
+    <label class="campo">Padrão<select id="ld-padrao"></select></label>
+    <div class="espaco"></div>
+    <div class="modo" role="radiogroup" aria-label="Amostra">
+      <button type="button" role="radio" data-modo="ah" aria-checked="true">Área homogênea</button>
+      <button type="button" role="radio" data-modo="r" aria-checked="false">Reboleira</button>
+      <button type="button" role="radio" data-modo="ambas" aria-checked="false">Ambas</button>
+    </div>
+    <button type="button" class="btn exp" id="ld-xls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Exportar Excel</button>
+    <button type="button" class="btn btn-prim exp" id="ld-pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Baixar laudo (PDF)</button>
+  </div>
+  <div class="msg" id="ld-vazio" hidden></div>
+  <div class="ld-folha" id="ld-folha" hidden>
+    <div class="ld-cab"><b>Laudo do Talhão</b><span>Resultados VNS – Grower Consultoria Agronômica</span></div>
+    <div class="ld-id" id="ld-id"></div>
+    <p class="nota ld-aviso-sel" id="ld-aviso-sel" hidden>Mais de um talhão ou padrão nos filtros: os valores são a média de todos os pontos selecionados. Escolha um talhão e um padrão para o laudo de um talhão.</p>
+    <div class="ld-hero">
+      <div class="ld-hero-g"><svg id="ld-gauge" viewBox="0 0 220 130"></svg></div>
+      <div class="ld-hero-t"><h2>Saúde do Solo <span id="ld-classe"></span></h2><p id="ld-texto"></p><div class="ld-hero-k" id="ld-hero-k"></div></div>
+    </div>
+    <div class="ld-sub" id="ld-sub"></div>
+    <p class="nota ld-regra">Indicadores: <b>Fertilidade</b> = % dos atributos do solo em Adequado ou acima (m% ao contrário); <b>Biologia</b> = classe Embrapa do IQS Biológico; <b>Sanidade</b> = pior nível de nematoide com referência; <b>Nutrição</b> = % dos nutrientes foliares em Adequado ou Elevado. Bom ≥ 75%, regular 50–75%, ruim &lt; 50%. Médias dos pontos filtrados; classes pelo valor arredondado em 2 casas.</p>
+    <div id="ld-b4a"></div>
+    <div id="ld-solo"></div>
+    <div id="ld-bio"></div>
+    <div id="ld-nem"></div>
+    <div id="ld-fol"></div>
+    <div id="ld-prod"></div>
+    <div class="ld-sec"><h2>Tabela completa</h2><p>Todos os atributos da base, com busca e ordenação.</p></div>
+    <div class="ld-tab-barra exp">
+      <input type="search" id="ld-busca" placeholder="Digite o nome do atributo…">
+      <div class="seletor" id="ld-ord"><button type="button" data-o="grupo" aria-checked="true">Por grupo</button><button type="button" data-o="az" aria-checked="false">A–Z</button><button type="button" data-o="alerta" aria-checked="false">Alertas primeiro</button></div>
+    </div>
+    <p class="nota" id="ld-tab-n"></p>
+    <div class="grade ld-grade"><table class="tab-bio" id="ld-tab"></table></div>
+  </div>
+</section>
+
+
   </div>
 </div>
 
@@ -421,6 +496,8 @@
 <script src="produtividade.js"></script>
 <script src="saude_ref.js"></script>
 <script src="saude.js"></script>
+<script src="b4a.js"></script>
+<script src="laudo.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
