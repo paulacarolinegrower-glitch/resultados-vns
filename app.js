@@ -25,7 +25,7 @@
   const tipoLink = (/type=(invite|recovery)/.exec(location.hash + location.search) || [])[1] || null;
   if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(URL_SB)) return msgLogin("A URL do Supabase em config.js parece incorreta. Ela deve ser como https://xxxxxxxx.supabase.co (valor atual: " + URL_SB.slice(0, 60) + ").");
   let sb;
-  try { sb = window.supabase.createClient(URL_SB, CHAVE_SB); }
+  try { sb = window.supabase.createClient(URL_SB, CHAVE_SB); window.vnsSB = sb; }
   catch(e){ return msgLogin("Erro na configuração do Supabase (config.js): " + e.message); }
   /* Se o Supabase não responder, explica em vez de ficar em "Carregando…" */
   setTimeout(() => { if (!$("login").hidden && $("login-msg").textContent === "Carregando…") msgLogin("O Supabase não respondeu. Confira a URL e a chave em config.js e a conexão com a internet."); }, 12000);
@@ -99,6 +99,7 @@
     window.vnsDados.permitirEdicao(perfil.papel !== "cliente");
     if (perfil.papel === "cliente" && !perfil.cliente){ toast("Seu acesso ainda não foi liberado. Fale com a Grower.", true, 8000); return; }
     await carregarReferencias();
+    window.vnsPerfil = perfil; document.dispatchEvent(new CustomEvent("vns-sessao", {detail:perfil}));
     await listarBases(true);
   }
   async function carregarReferencias(){
