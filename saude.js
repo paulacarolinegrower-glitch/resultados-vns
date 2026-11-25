@@ -104,7 +104,7 @@
       if (!corPadrao.has(pd)) corPadrao.set(pd, corPadrao.size % PAL.length);
       const ls = S.cPad >= 0 ? linhas.filter(l => txt(l.v[S.cPad]) === pd) : linhas;
       ams.forEach(am => {
-        const vals = ls.map(l => ponto(l, am));
+        const vals = ls.map(l => { const o = ponto(l, am); o.l = l; return o; });
         const rot = (pd || "Pontos") + (ams.length > 1 || modo === "r" ? " · " + am.toUpperCase() : "");
         out.push({pd, am, rot, vals, cor:(am === "r" ? PAL_R : PAL)[corPadrao.get(pd)]});
       });
@@ -228,13 +228,14 @@
       <text transform="translate(11 ${Y(.5)}) rotate(-90)" font-size="11.5" text-anchor="middle" fill="${cTxt}" font-weight="600">Índice de Armazenamento de Nutrientes</text>`;
     [["Doente",.17,.2],["Adoecendo",.25,.8],["Intermediário",.5,.5],["Recuperando",.75,.22],["Saudável",.8,.84]].forEach(([n,c,a]) => h += `<text x="${X(c)}" y="${Y(a)}" font-size="11" text-anchor="middle" fill="#1B2620" opacity=".75">${n}</text>`);
     const lim = v => Math.max(0, Math.min(1, v));
-    const marca = (s, cx, cy, r, tit) => { const a = `fill="${s.cor}" fill-opacity=".85" stroke="#fff" stroke-width=".8"`; return s.am === "r"
-      ? `<path d="M${cx} ${cy - r * 1.2} L${cx + r * 1.1} ${cy + r * .8} L${cx - r * 1.1} ${cy + r * .8} Z" ${a}><title>${tit}</title></path>`
-      : `<circle cx="${cx}" cy="${cy}" r="${r}" ${a}><title>${tit}</title></circle>`; };
-    Ss.forEach(s => s.vals.forEach(v => { if (v.saude !== null) h += marca(s, X(lim(v.cic)), Y(lim(v.arm)), 4.2, `${esc(s.rot)}: Ciclagem ${f2.format(v.cic)} · Armazenamento ${f2.format(v.arm)} → ${SAUDE[v.saude]}`); }));
+    const marca = (s, cx, cy, r, ds) => { const a = `class="sd-pt" ${ds} fill="${s.cor}" fill-opacity=".85" stroke="#fff" stroke-width=".8"`; return s.am === "r"
+      ? `<path d="M${cx} ${cy - r * 1.2} L${cx + r * 1.1} ${cy + r * .8} L${cx - r * 1.1} ${cy + r * .8} Z" ${a}/>`
+      : `<circle cx="${cx}" cy="${cy}" r="${r}" ${a}/>`; };
+    Ss.forEach((s,si) => s.vals.forEach((v,vi) => { if (v.saude !== null) h += marca(s, X(lim(v.cic)), Y(lim(v.arm)), 4.2, `data-s="${si}" data-v="${vi}"`); }));
     const L = Ss.map(s => { const vs = s.vals.filter(v => v.saude !== null), c = mediaDe(vs, "cic"), a = mediaDe(vs, "arm"); return {s, n:vs.length, c, a, k:c !== null && a !== null ? saudeSolo(c, a) : null, d:contar(vs, v => v.saude)}; });
-    L.forEach(l => { if (l.k !== null){ const x = X(lim(l.c)), y = Y(lim(l.a)); h += `<path d="M${x} ${y - 10} L${x + 10} ${y} L${x} ${y + 10} L${x - 10} ${y} Z" fill="${l.s.cor}" stroke="#fff" stroke-width="2"><title>Média ${esc(l.s.rot)}</title></path>`; } });
+    L.forEach((l,li) => { if (l.k !== null){ const x = X(lim(l.c)), y = Y(lim(l.a)); h += `<path class="sd-pt" data-m="${li}" d="M${x} ${y - 10} L${x + 10} ${y} L${x} ${y + 10} L${x - 10} ${y} Z" fill="${l.s.cor}" stroke="#fff" stroke-width="2"/>`; } });
     $("sd-diag").innerHTML = h;
+    ultimo.diag = L;
     $("sd-diag-leg").innerHTML = Ss.map(s => `<span class="sw">${s.am === "r" ? `<svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 1 L11 10 L1 10 Z" fill="${s.cor}"/></svg>` : `<i style="background:${s.cor};border-radius:50%"></i>`}${esc(s.rot)}</span>`).join("") + "<span>◆ = média</span>";
     $("sd-diag-dir").innerHTML = `
       <table class="sd-kp"><thead><tr><th>${modo === "ambas" ? "Padrão · amostra" : "Padrão"}</th><th class="n">Ciclagem</th><th class="n">Armaz.</th><th>Classe da média</th></tr></thead><tbody>
@@ -244,6 +245,43 @@
       <div class="leg-classes" style="margin-top:8px">${SAUDE.map((s,i) => `<span class="sw"><i style="background:${CORES[i]}"></i>${s}</span>`).join("")}</div>
       <p class="nota" style="margin-top:10px">Regra: cada ponto é posicionado pela sua Ciclagem e seu Armazenamento; a área onde cai define a classe. Ponto exatamente sobre uma linha fica na classe pior. O Suprimento não entra nessa classe.</p>`;
   }
+
+
+  /* Dica ao passar o mouse nos pontos do diagrama (como nas outras guias) */
+  const tip = document.createElement("div"); tip.className = "sd-tip"; tip.hidden = true;
+  const diagSvg = $("sd-diag"), caixa = document.createElement("div"); caixa.className = "sd-diag-caixa";
+  diagSvg.parentNode.insertBefore(caixa, diagSvg); caixa.appendChild(diagSvg); caixa.appendChild(tip);
+  function textoDica(el){
+    if (!ultimo) return "";
+    const lin = (cor, t) => `<div class="sd-tip-l">${cor ? `<i style="background:${cor}"></i>` : ""}${t}</div>`;
+    if (el.dataset.m !== undefined){
+      const l = ultimo.diag && ultimo.diag[+el.dataset.m]; if (!l) return "";
+      return `<b>Média – ${esc(l.s.rot)}</b>` + lin(l.s.cor, `${l.n} ${l.n === 1 ? "ponto" : "pontos"}`) +
+        lin("", `Ciclagem: ${f2.format(l.c)}`) + lin("", `Armazenamento: ${f2.format(l.a)}`) + lin(CORES[l.k], `Saúde do Solo: ${SAUDE[l.k]}`);
+    }
+    const s = ultimo.Ss[+el.dataset.s], v = s && s.vals[+el.dataset.v]; if (!v) return "";
+    const c = col => col >= 0 ? txt(v.l.v[col]) : "";
+    const tit = [c(S.cTal) && `Talhão ${c(S.cTal)}`, c(S.cPto) && `Ponto ${c(S.cPto)}`].filter(Boolean).join(" · ") || "Ponto";
+    return `<b>${esc(tit)}</b>` +
+      [["Cliente",S.cCli],["Fazenda",S.cFaz],["Município",S.cMun]].filter(([,col]) => c(col)).map(([n,col]) => lin("", `${n}: ${esc(c(col))}`)).join("") +
+      lin(s.cor, `${esc(c(S.cPad) || "Padrão")} · ${NOME_AM[s.am]}`) +
+      lin("", `Ciclagem: ${f2.format(v.cic)}`) + lin("", `Armazenamento: ${f2.format(v.arm)}`) +
+      (v.sup !== null ? lin("", `Suprimento: ${f2.format(v.sup)}`) : "") + (v.iqs !== null ? lin("", `IQS Fertbio: ${f2.format(v.iqs)}`) : "") +
+      lin(CORES[v.saude], `Saúde do Solo: ${SAUDE[v.saude]}`);
+  }
+  function mostrarDica(e){
+    const el = e.target.closest && e.target.closest(".sd-pt");
+    if (!el){ tip.hidden = true; return; }
+    const html = textoDica(el); if (!html){ tip.hidden = true; return; }
+    tip.innerHTML = html; tip.hidden = false;
+    const r = caixa.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const w = tip.offsetWidth, hh = tip.offsetHeight;
+    tip.style.left = Math.max(0, Math.min(x + 14, r.width - w)) + "px";
+    tip.style.top = Math.max(0, y - hh - 12 < 0 ? y + 16 : y - hh - 12) + "px";
+  }
+  diagSvg.addEventListener("pointermove", mostrarDica);
+  diagSvg.addEventListener("click", mostrarDica);
+  diagSvg.addEventListener("pointerleave", () => { tip.hidden = true; });
 
   /* 2. Pizzas com os nossos pontos */
   function pizza(itens, tam){
@@ -419,7 +457,7 @@
     const larg = el.style.width; if (larguraMin && el.offsetWidth < larguraMin) el.style.width = larguraMin + "px";
     try {
       const fundo = getComputedStyle(document.documentElement).getPropertyValue("--surface").trim() || "#FFFFFF";
-      const cv = await html2canvas(el, {scale:2, backgroundColor:fundo, useCORS:true, logging:false, ignoreElements: x => x.classList && (x.classList.contains("exp") || x.classList.contains("leaflet-control-container"))});
+      const cv = await html2canvas(el, {scale:2, backgroundColor:fundo, useCORS:true, logging:false, ignoreElements: x => x.classList && (x.classList.contains("exp") || x.classList.contains("sd-tip") || x.classList.contains("leaflet-control-container"))});
       const blob = await new Promise(r => cv.toBlob(r, "image/png"));
       if (blob) await salvar(nome, blob); else avisar("Não foi possível gerar a imagem.", true);
     } catch(e){ avisar("Não foi possível gerar a imagem" + (el.querySelector(".leaflet-container") ? " do mapa (o fundo bloqueou a cópia). Tente a camada “Mapa”." : "."), true); }
