@@ -91,6 +91,7 @@
     $("login").hidden = true;
     const {data} = await sb.from("perfis").select("nome,papel,cliente").eq("id", session.user.id).maybeSingle();
     perfil = data || {nome: session.user.email, papel: "cliente", cliente: null};
+    meuId = session.user.id; window.vnsMeuId = meuId;
     document.body.dataset.papel = perfil.papel;
     $("usuario-nome").textContent = perfil.nome || session.user.email;
     $("usuario-papel").textContent = ({admin:"Administrador", equipe:"Equipe Grower", cliente:"Cliente " + (perfil.cliente || "")})[perfil.papel] || "";
@@ -101,6 +102,7 @@
     await carregarReferencias();
     window.vnsPerfil = perfil; document.dispatchEvent(new CustomEvent("vns-sessao", {detail:perfil}));
     await listarBases(true);
+    iniciarTempoReal();
   }
   async function carregarReferencias(){
     const {data, error} = await sb.from("referencias").select("id,dados");
@@ -111,15 +113,22 @@
 
   /* ---------- Bases salvas ---------- */
   const rotuloBase = b => `${b.safra ? "Safra " + b.safra + " – " : ""}${b.arquivo || "Base"} (${new Date(b.criado_em).toLocaleDateString("pt-BR")})`;
-  async function listarBases(abrirMaisRecente, selecionar){
-    const {data, error} = await sb.from("importacoes").select("id,arquivo,aba,safra,criado_em").order("criado_em", {ascending:false});
-    if (error){ toast("Não foi possível listar as bases salvas. " + traduz(error), true); return; }
+  const COLS_BASE = "id,arquivo,aba,safra,criado_em,criado_por,atualizado_em,atualizado_por";
+  const versaoBase = b => String(b.atualizado_em || b.criado_em || "");
+  let fotoBases = new Map(), listou = false;   /* id -> versão, para perceber bases novas ou alteradas por outros */
+  function preencherBases(data, selecionar){
     bases = data || [];
+    fotoBases = new Map(bases.map(b => [String(b.id), versaoBase(b)])); listou = true;
     const sel = $("sel-base");
     sel.innerHTML = bases.length ? bases.map(b => `<option value="${b.id}">${esc(rotuloBase(b))}</option>`).join("") : '<option value="">Nenhuma base salva</option>';
     sel.disabled = !bases.length;
     $("campo-base").hidden = false;
     if (selecionar) sel.value = String(selecionar);
+  }
+  async function listarBases(abrirMaisRecente, selecionar){
+    const {data, error} = await sb.from("importacoes").select(COLS_BASE).order("criado_em", {ascending:false});
+    if (error){ toast("Não foi possível listar as bases salvas. " + traduz(error), true); return; }
+    preencherBases(data, selecionar);
     if (abrirMaisRecente && bases.length) await carregarBase(bases[0].id);
     else if (abrirMaisRecente) toast(perfil.papel === "cliente" ? "Ainda não há resultados disponíveis para você." : "Nenhuma base salva ainda. Importe uma planilha e clique em Salvar no banco.", false, 6000);
     atualizarBotoes();
@@ -198,7 +207,77 @@
     const temDados = window.vnsDados && window.vnsDados.atual().cab.length > 0;
     $("btn-salvar").hidden = !(p === "admin" || p === "equipe") || doBanco || !temDados;
     $("btn-excluir").hidden = !(p === "admin" && doBanco && baseAtual);
+    $("faixa-nao-salva").hidden = !(p === "admin" || p === "equipe") || doBanco || !temDados;
+    /* No seletor de bases, deixa claro quando a tela mostra uma planilha importada e ainda não salva */
+    const sel = $("sel-base"), local = !doBanco && temDados && bases.length > 0;
+    let ph = sel.querySelector("option[data-local]");
+    if (local && !ph){ ph = new Option("Planilha importada (não salva)", ""); ph.dataset.local = "1"; sel.prepend(ph); }
+    if (!local && ph) ph.remove();
+    if (local) sel.value = ""; else if (doBanco && baseAtual) sel.value = String(baseAtual);
   }
+  $("faixa-salvar").addEventListener("click", () => $("btn-salvar").click());
+
+  /* ---------- Bases novas ou alteradas por outros colaboradores ---------- */
+  let meuId = null, canal = null, tVerif = null, verificando = false, ultimaVolta = 0;
+  function avisoRT(texto, botao, acao){
+    const el = $("rt-aviso"), b = $("rt-acao");
+    $("rt-txt").textContent = texto; b.textContent = botao || ""; b.hidden = !botao;
+    b.onclick = () => { el.hidden = true; if (acao) acao(); };
+    el.hidden = false;
+  }
+  window.vnsAvisoRT = avisoRT;
+  $("rt-fechar").addEventListener("click", () => $("rt-aviso").hidden = true);
+  function abrirBase(id){
+    const temDados = window.vnsDados && window.vnsDados.atual().cab.length > 0;
+    if (temPendentes() && !confirm("Há alterações não salvas nesta base. Descartá-las e abrir a base atualizada?")) return;
+    if (!doBanco && temDados && (perfil.papel === "admin" || perfil.papel === "equipe") && !confirm("A planilha importada ainda não foi salva no banco. Abrir a outra base e descartá-la da tela?")) return;
+    carregarBase(id);
+  }
+  async function verificarNovidades(){
+    if (!perfil || !listou || verificando) return;
+    verificando = true;
+    try {
+      const {data, error} = await sb.from("importacoes").select(COLS_BASE).order("criado_em", {ascending:false});
+      if (error || !data) return;
+      const antes = fotoBases, atualId = baseAtual && doBanco ? String(baseAtual) : null;
+      const novas = data.filter(b => !antes.has(String(b.id)) && b.criado_por !== meuId);
+      const atual = atualId ? data.find(b => String(b.id) === atualId) : null;
+      const alterada = atual && antes.has(atualId) && antes.get(atualId) !== versaoBase(atual) && atual.atualizado_por && atual.atualizado_por !== meuId;
+      const excluida = atualId && !atual;
+      preencherBases(data, doBanco && atual ? atual.id : null);
+      if (excluida){
+        baseAtual = null; doBanco = false; atualizarBotoes();
+        avisoRT("A base que você está vendo foi excluída do banco por outro colaborador. Os dados continuam na tela até você trocar de base.");
+      } else if (alterada){
+        avisoRT(`Outro colaborador salvou alterações nesta base (${rotuloBase(atual)}).`, "Recarregar", () => abrirBase(atual.id));
+      } else if (novas.length){
+        const b = novas[0];
+        avisoRT(novas.length === 1 ? `Nova base disponível: ${rotuloBase(b)}` : `${novas.length} novas bases disponíveis. A mais recente: ${rotuloBase(b)}`, "Abrir", () => abrirBase(b.id));
+      }
+      atualizarBotoes();
+    } finally { verificando = false; }
+  }
+  const agendarVerificacao = () => { clearTimeout(tVerif); tVerif = setTimeout(verificarNovidades, 800); };
+  let tB4A = null;
+  const recarregarB4A = () => { clearTimeout(tB4A); tB4A = setTimeout(() => document.dispatchEvent(new CustomEvent("b4a-recarregar")), 800); };
+  function iniciarTempoReal(){
+    if (canal || typeof sb.channel !== "function") return;
+    try {
+      canal = sb.channel("vns-bases")
+        .on("postgres_changes", {event:"*", schema:"public", table:"importacoes"}, agendarVerificacao)
+        .on("postgres_changes", {event:"*", schema:"public", table:"laudos_b4a"}, recarregarB4A)
+        .subscribe();
+    } catch(e){ canal = null; }
+  }
+  /* Se o aviso em tempo real falhar (app minimizado, sem internet), confere ao voltar para o app e a cada 3 minutos */
+  function aoVoltar(){
+    if (!perfil || !listou || document.visibilityState !== "visible" || Date.now() - ultimaVolta < 15000) return;
+    ultimaVolta = Date.now(); verificarNovidades(); recarregarB4A();
+  }
+  document.addEventListener("visibilitychange", aoVoltar);
+  window.addEventListener("focus", aoVoltar);
+  window.addEventListener("online", aoVoltar);
+  setInterval(aoVoltar, 180000);
 
   /* ---------- Salvar no banco ---------- */
   $("btn-salvar").addEventListener("click", () => {
