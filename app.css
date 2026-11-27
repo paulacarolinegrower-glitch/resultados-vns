@@ -462,3 +462,13 @@ dialog.dlg input{border:1px solid var(--line);background:var(--surface-2);color:
   body.imprimindo-laudo .ld-item,body.imprimindo-laudo .ld-ind{break-inside:avoid}
   @page{size:A4;margin:12mm}
 }
+
+/* Avisos de bases novas/alteradas e planilha não salva */
+.faixa-nao-salva{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FFF4D6;border-bottom:1px solid #E8C96A;color:#5C4400;padding:8px 18px;font-size:14px}
+.faixa-nao-salva[hidden]{display:none}
+.faixa-nao-salva .btn{padding:5px 12px}
+.rt-aviso{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:61;max-width:420px;display:flex;align-items:center;gap:10px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-left:4px solid var(--ouro);border-radius:10px;box-shadow:var(--shadow);padding:10px 12px;font-size:14px}
+.rt-aviso[hidden]{display:none}
+.rt-aviso .btn{flex:none;padding:5px 12px}
+.rt-fechar{flex:none;background:none;border:0;font-size:20px;line-height:1;color:var(--muted);cursor:pointer;padding:0 2px}
+@media print{.faixa-nao-salva,.rt-aviso{display:none!important}}
