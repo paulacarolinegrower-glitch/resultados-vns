@@ -80,6 +80,10 @@
     <button class="guia" role="tab" id="guia-laudo" aria-selected="false" aria-controls="painel-laudo" data-alvo="laudo" tabindex="-1">Laudo do Talhão</button>
   </nav>
   <div class="conteudo">
+<div class="faixa-nao-salva" id="faixa-nao-salva" role="status" hidden>
+  <span><b>Esta planilha ainda não foi salva:</b> só você está vendo. Salve no banco para liberar à equipe.</span>
+  <button class="btn btn-prim" id="faixa-salvar" type="button">Salvar no banco</button>
+</div>
 <main class="painel" id="painel-dados" role="tabpanel" aria-labelledby="guia-dados">
   <div class="barra">
     <label class="btn btn-prim" for="entrada" id="btn-importar">
@@ -486,6 +490,11 @@
   </div>
 </div>
 <div class="aviso" id="aviso" hidden></div>
+<div class="rt-aviso" id="rt-aviso" role="status" aria-live="polite" hidden>
+  <span id="rt-txt"></span>
+  <button class="btn btn-prim" id="rt-acao" type="button" hidden></button>
+  <button class="rt-fechar" id="rt-fechar" type="button" aria-label="Fechar aviso">×</button>
+</div>
 
 <script src="config.js"></script>
 <script src="dados.js"></script>
