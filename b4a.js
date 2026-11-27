@@ -40,15 +40,21 @@
   const SUBF = {"ruim":0.17, "regular":0.5, "bom":0.83};
 
   /* ---------- Carga dos laudos ---------- */
+  let carregou = false;
   async function carregar(){
     const sb = window.vnsSB; if (!sb) return;
-    const {data, error} = await sb.from("laudos_b4a").select("id,identificacao,estado,cliente,fazenda,talhao,padrao,amostra,safra,dados,criado_em").order("criado_em");
+    const antes = new Set(laudos.map(L => L.id)), primeira = !carregou;
+    const {data, error} = await sb.from("laudos_b4a").select("id,identificacao,estado,cliente,fazenda,talhao,padrao,amostra,safra,dados,criado_em,criado_por").order("criado_em");
     if (error){ erroCarga = /relation|does not exist|schema cache/i.test(error.message || "") ? "A tabela de laudos B4A ainda não foi criada no banco (arquivo b4a.sql)." : "Erro ao carregar os laudos: " + (error.message || ""); laudos = []; }
-    else { erroCarga = null; laudos = data || []; }
+    else { erroCarga = null; laudos = data || []; carregou = true; }
     window.vnsLaudosB4A = laudos;
+    /* Laudos importados por outro colaborador enquanto o app estava aberto */
+    const novos = primeira || error ? [] : laudos.filter(L => !antes.has(L.id) && L.criado_por !== window.vnsMeuId);
+    if (novos.length && window.vnsAvisoRT) window.vnsAvisoRT(novos.length === 1 ? `Novo laudo B4A disponível: ${novos[0].identificacao}${novos[0].talhao ? " (talhão " + novos[0].talhao + ")" : ""}` : `${novos.length} novos laudos B4A disponíveis.`, "Ver", () => $("guia-b4a").click());
     document.dispatchEvent(new CustomEvent("b4a-atualizados"));
     montarFiltros(); render();
   }
+  document.addEventListener("b4a-recarregar", () => { if (window.vnsSB && window.vnsPerfil) carregar(); });
   document.addEventListener("vns-sessao", e => {
     const papel = e.detail && e.detail.papel;
     P.querySelectorAll(".bq-equipe").forEach(b => b.hidden = !(papel === "admin" || papel === "equipe"));
